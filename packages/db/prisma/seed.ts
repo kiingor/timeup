@@ -1,6 +1,6 @@
 import { hash } from "@node-rs/argon2";
 import { DEFAULT_THEME } from "@timeup/core";
-import { PrismaClient } from "../src/generated/client";
+import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
 

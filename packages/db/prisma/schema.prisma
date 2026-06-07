@@ -2,8 +2,10 @@
 // indexed by it. Money is Decimal(14,2). Percentages are NEVER stored — computed on read.
 
 generator client {
-  provider = "prisma-client-js"
-  output   = "../src/generated/client"
+  provider      = "prisma-client-js"
+  // default output (node_modules/.prisma/client) so Vercel/Next bundle the engine natively;
+  // rhel-openssl-3.0.x is the Vercel serverless runtime.
+  binaryTargets = ["native", "rhel-openssl-3.0.x"]
 }
 
 datasource db {
