@@ -1,0 +1,233 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  /* page = the cool gray behind the floating white panel */
+  --page: #dce1e9;
+
+  --background: #ffffff;
+  --foreground: #1a1d29;
+  --card: #ffffff;
+  --card-foreground: #1a1d29;
+  --popover: #ffffff;
+  --popover-foreground: #1a1d29;
+
+  --primary: #6d5dd3;
+  --primary-foreground: #ffffff;
+
+  --secondary: #f4f5f8;
+  --secondary-foreground: #1a1d29;
+  --muted: #f4f5f8;
+  --muted-foreground: #8a94a6;
+  --accent: #f1f0fb;
+  --accent-foreground: #5a4bc4;
+
+  --destructive: #ef5e6e;
+  --destructive-foreground: #ffffff;
+  --success: #22c55e;
+  --success-foreground: #ffffff;
+  --warning: #f59e0b;
+  --warning-foreground: #ffffff;
+  --info: #38bdf8;
+  --info-foreground: #ffffff;
+  --pink: #ec4899;
+  --pink-foreground: #ffffff;
+
+  --border: #edeff3;
+  --input: #e6e9ef;
+  --ring: #6d5dd3;
+  --radius: 1rem;
+
+  /* per-tenant brand tokens (overridden by inline server-rendered <style>) */
+  --brand: #6d5dd3;
+  --brand-foreground: #ffffff;
+  --brand-strong: #5a4bc4;
+  --accent-brand: #ec4899;
+
+  /* sidebar (light, like the reference) */
+  --sidebar: #ffffff;
+  --sidebar-foreground: #1a1d29;
+  --sidebar-muted: #9aa3b2;
+  --sidebar-border: #f0f2f5;
+  --sidebar-active: #f1f0fb;
+  --sidebar-active-foreground: #5a4bc4;
+}
+
+.dark {
+  --page: #0a0e1a;
+  --background: #0f1422;
+  --foreground: #e9eaf0;
+  --card: #141a2a;
+  --card-foreground: #e9eaf0;
+  --popover: #141a2a;
+  --popover-foreground: #e9eaf0;
+  --primary: #8b7df0;
+  --primary-foreground: #ffffff;
+  --secondary: #1c2333;
+  --secondary-foreground: #e9eaf0;
+  --muted: #1c2333;
+  --muted-foreground: #8a94a6;
+  --accent: #211d3a;
+  --accent-foreground: #c9c2f5;
+  --border: #232a3b;
+  --input: #232a3b;
+  --ring: #8b7df0;
+  --sidebar: #0f1422;
+  --sidebar-foreground: #e9eaf0;
+  --sidebar-muted: #6b7385;
+  --sidebar-border: #1c2333;
+  --sidebar-active: #1c2333;
+  --sidebar-active-foreground: #c9c2f5;
+}
+
+@theme inline {
+  --color-page: var(--page);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-info: var(--info);
+  --color-info-foreground: var(--info-foreground);
+  --color-pink: var(--pink);
+  --color-pink-foreground: var(--pink-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  --color-brand: var(--brand);
+  --color-brand-foreground: var(--brand-foreground);
+  --color-brand-strong: var(--brand-strong);
+  --color-accent-brand: var(--accent-brand);
+
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-muted: var(--sidebar-muted);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-active: var(--sidebar-active);
+  --color-sidebar-active-foreground: var(--sidebar-active-foreground);
+
+  --radius-sm: calc(var(--radius) - 8px);
+  --radius-md: calc(var(--radius) - 4px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 8px);
+
+  --font-sans: var(--font-jakarta), ui-sans-serif, system-ui, -apple-system, sans-serif;
+}
+
+@layer base {
+  * {
+    border-color: var(--color-border);
+  }
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+  body {
+    background-color: var(--color-page);
+    color: var(--color-foreground);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+  .tabnums {
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+@layer utilities {
+  .shadow-soft {
+    box-shadow: 0 1px 2px rgba(16, 24, 40, 0.05);
+  }
+  .shadow-card {
+    box-shadow:
+      0 1px 2px rgba(16, 24, 40, 0.04),
+      0 12px 32px -16px rgba(16, 24, 40, 0.18);
+  }
+  .shadow-panel {
+    box-shadow:
+      0 1px 3px rgba(16, 24, 40, 0.05),
+      0 24px 48px -24px rgba(16, 24, 40, 0.22);
+  }
+  /* the decorative four-point star used on the hero banner */
+  .bg-hero {
+    background-image: linear-gradient(120deg, color-mix(in srgb, var(--brand) 88%, white), var(--brand-strong));
+  }
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .animate-in-up {
+    animation: in-up 0.25s ease-out both;
+  }
+}
+@keyframes in-up {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@layer utilities {
+  .dlg-overlay {
+    animation: dlg-overlay-in 150ms ease-out;
+  }
+  .dlg-content {
+    animation: dlg-content-in 190ms cubic-bezier(0.16, 1, 0.3, 1);
+  }
+}
+@keyframes dlg-overlay-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes dlg-content-in {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@layer utilities {
+  .drawer-in {
+    animation: drawer-in 220ms cubic-bezier(0.16, 1, 0.3, 1);
+  }
+}
+@keyframes drawer-in {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}

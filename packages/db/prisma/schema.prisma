@@ -1,0 +1,362 @@
+// TimeUp data model. Multi-tenant: every tenant-owned table carries tenant_id and is
+// indexed by it. Money is Decimal(14,2). Percentages are NEVER stored — computed on read.
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/client"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  master
+  admin
+  colaborador
+}
+
+enum TenantStatus {
+  active
+  suspended
+}
+
+enum SyncStatusEnum {
+  running
+  success
+  partial
+  error
+}
+
+enum SalesSourceEnum {
+  rankingvendedor
+  pre_venda_v1
+  pre_venda_v2
+  manual
+  seed
+}
+
+model Tenant {
+  id          String       @id @default(uuid()) @db.Uuid
+  name        String
+  slug        String       @unique
+  status      TenantStatus @default(active)
+  theme       Json         @db.JsonB
+  settings    Json         @db.JsonB
+  createdById String?      @db.Uuid
+  createdBy   User?        @relation("TenantCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt   DateTime     @default(now()) @db.Timestamptz(6)
+  updatedAt   DateTime     @updatedAt @db.Timestamptz(6)
+
+  softcomConnections TenantSoftcomConfig[]
+  empresas         Empresa[]
+  users            User[]               @relation("TenantUsers")
+  colaboradores    Colaborador[]
+  metaTiers        MetaTier[]
+  storeGoals       MonthlyStoreGoal[]
+  colaboradorGoals ColaboradorGoal[]
+  salesDaily       SalesDaily[]
+  salesMonthly     SalesMonthly[]
+  storeMonthly     StoreMonthly[]
+  monthSettings    MonthSettings[]
+  syncRuns         SyncRun[]
+  auditLogs        AuditLog[]
+  notifications    Notification[]
+}
+
+// A Softcom device connection. One tenant can have several (one per empresa).
+model TenantSoftcomConfig {
+  id                 String    @id @default(uuid()) @db.Uuid
+  tenantId           String    @db.Uuid
+  tenant             Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  urlBase            String
+  instance           String
+  // client_id used on /device/add (account-level)
+  accountClientId    String?
+  // device credentials returned by /device/add:
+  clientId           String?
+  clientSecretEnc    Bytes?
+  clientSecretIv     Bytes?
+  clientSecretTag    Bytes?
+  deviceId           String?
+  deviceName         String?
+  provisionedAt      DateTime? @db.Timestamptz(6)
+  enabled            Boolean   @default(false)
+  lastToken          String?
+  lastTokenExpiresAt DateTime? @db.Timestamptz(6)
+  createdAt          DateTime  @default(now()) @db.Timestamptz(6)
+  updatedAt          DateTime  @updatedAt @db.Timestamptz(6)
+
+  empresas Empresa[] @relation("ConnectionEmpresas")
+
+  @@index([tenantId])
+}
+
+// A Softcom empresa (loja) within a tenant. Fed by exactly one connection.
+model Empresa {
+  id               String               @id @default(uuid()) @db.Uuid
+  tenantId         String               @db.Uuid
+  tenant           Tenant               @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  softcomEmpresaId Int
+  name             String
+  cnpj             String?
+  connectionId     String?              @db.Uuid
+  connection       TenantSoftcomConfig? @relation("ConnectionEmpresas", fields: [connectionId], references: [id], onDelete: SetNull)
+  active           Boolean              @default(true)
+  createdAt        DateTime             @default(now()) @db.Timestamptz(6)
+  updatedAt        DateTime             @updatedAt @db.Timestamptz(6)
+
+  colaboradores    Colaborador[]
+  storeGoals       MonthlyStoreGoal[]
+  storeMonthly     StoreMonthly[]
+  salesDaily       SalesDaily[]
+  salesMonthly     SalesMonthly[]
+  colaboradorGoals ColaboradorGoal[]
+  monthSettings    MonthSettings[]
+
+  @@unique([tenantId, softcomEmpresaId])
+  @@index([tenantId])
+  @@index([connectionId])
+}
+
+model User {
+  id            String       @id @default(uuid()) @db.Uuid
+  tenantId      String?      @db.Uuid
+  tenant        Tenant?      @relation("TenantUsers", fields: [tenantId], references: [id], onDelete: Cascade)
+  role          Role
+  email         String       @unique
+  passwordHash  String
+  name          String
+  isActive      Boolean      @default(true)
+  colaboradorId String?      @unique @db.Uuid
+  colaborador   Colaborador? @relation("ColaboradorLogin", fields: [colaboradorId], references: [id], onDelete: SetNull)
+  lastLoginAt   DateTime?    @db.Timestamptz(6)
+  createdAt     DateTime     @default(now()) @db.Timestamptz(6)
+  updatedAt     DateTime     @updatedAt @db.Timestamptz(6)
+
+  tenantsCreated Tenant[]   @relation("TenantCreatedBy")
+  auditLogs      AuditLog[]
+
+  @@index([tenantId])
+}
+
+model Colaborador {
+  id                  String   @id @default(uuid()) @db.Uuid
+  tenantId            String   @db.Uuid
+  tenant              Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  empresaId           String   @db.Uuid
+  empresa             Empresa  @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  name                String
+  email               String?
+  active              Boolean  @default(true)
+  softcomVendedorId   String?
+  softcomVendedorNome String?
+  /** chosen pixel-art vehicle for the race ranking, e.g. "car:red" (null = default) */
+  vehicle             String?
+  createdAt           DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt           DateTime @updatedAt @db.Timestamptz(6)
+
+  user              User?              @relation("ColaboradorLogin")
+  goals             ColaboradorGoal[]
+  salesDaily        SalesDaily[]
+  salesMonthly      SalesMonthly[]
+  notifications     Notification[]
+  notificationReads NotificationRead[]
+
+  @@unique([tenantId, empresaId, softcomVendedorId])
+  @@index([tenantId])
+  @@index([empresaId])
+}
+
+model MetaTier {
+  id         String   @id @default(uuid()) @db.Uuid
+  tenantId   String   @db.Uuid
+  tenant     Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  name       String
+  orderIndex Int
+  color      String?
+  active     Boolean  @default(true)
+  createdAt  DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt  DateTime @updatedAt @db.Timestamptz(6)
+
+  goals ColaboradorGoal[]
+
+  @@index([tenantId])
+}
+
+model MonthlyStoreGoal {
+  id          String   @id @default(uuid()) @db.Uuid
+  tenantId    String   @db.Uuid
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  empresaId   String   @db.Uuid
+  empresa     Empresa  @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  periodYear  Int
+  periodMonth Int
+  targetBrl   Decimal  @db.Decimal(14, 2)
+  createdById String?  @db.Uuid
+  createdAt   DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt   DateTime @updatedAt @db.Timestamptz(6)
+
+  @@unique([tenantId, empresaId, periodYear, periodMonth])
+  @@index([tenantId])
+  @@index([empresaId])
+}
+
+model ColaboradorGoal {
+  id            String      @id @default(uuid()) @db.Uuid
+  tenantId      String      @db.Uuid
+  tenant        Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  empresaId     String      @db.Uuid
+  empresa       Empresa     @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  colaboradorId String      @db.Uuid
+  colaborador   Colaborador @relation(fields: [colaboradorId], references: [id], onDelete: Cascade)
+  metaTierId    String      @db.Uuid
+  metaTier      MetaTier    @relation(fields: [metaTierId], references: [id], onDelete: Cascade)
+  periodYear    Int
+  periodMonth   Int
+  targetBrl     Decimal     @db.Decimal(14, 2)
+  /** optional prize (R$) the colaborador earns on reaching this tier; revealed to them only when reached */
+  bonusBrl      Decimal?    @db.Decimal(14, 2)
+  createdById   String?     @db.Uuid
+  createdAt     DateTime    @default(now()) @db.Timestamptz(6)
+  updatedAt     DateTime    @updatedAt @db.Timestamptz(6)
+
+  @@unique([tenantId, colaboradorId, metaTierId, periodYear, periodMonth])
+  @@index([tenantId, periodYear, periodMonth])
+  @@index([empresaId, periodYear, periodMonth])
+}
+
+model SalesDaily {
+  id            String          @id @default(uuid()) @db.Uuid
+  tenantId      String          @db.Uuid
+  tenant        Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  empresaId     String          @db.Uuid
+  empresa       Empresa         @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  colaboradorId String          @db.Uuid
+  colaborador   Colaborador     @relation(fields: [colaboradorId], references: [id], onDelete: Cascade)
+  saleDate      DateTime        @db.Date
+  realizedBrl   Decimal         @default(0) @db.Decimal(14, 2)
+  saleCount     Int             @default(0)
+  source        SalesSourceEnum
+  syncedAt      DateTime        @default(now()) @db.Timestamptz(6)
+
+  @@unique([tenantId, empresaId, colaboradorId, saleDate])
+  @@index([tenantId, colaboradorId])
+  @@index([empresaId])
+}
+
+model SalesMonthly {
+  id            String      @id @default(uuid()) @db.Uuid
+  tenantId      String      @db.Uuid
+  tenant        Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  empresaId     String      @db.Uuid
+  empresa       Empresa     @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  colaboradorId String      @db.Uuid
+  colaborador   Colaborador @relation(fields: [colaboradorId], references: [id], onDelete: Cascade)
+  periodYear    Int
+  periodMonth   Int
+  realizedBrl   Decimal     @default(0) @db.Decimal(14, 2)
+  rankPosition  Int?
+  updatedAt     DateTime    @updatedAt @db.Timestamptz(6)
+
+  @@unique([tenantId, empresaId, colaboradorId, periodYear, periodMonth])
+  @@index([tenantId, periodYear, periodMonth])
+  @@index([empresaId, periodYear, periodMonth])
+}
+
+model StoreMonthly {
+  id          String   @id @default(uuid()) @db.Uuid
+  tenantId    String   @db.Uuid
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  empresaId   String   @db.Uuid
+  empresa     Empresa  @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  periodYear  Int
+  periodMonth Int
+  realizedBrl Decimal  @default(0) @db.Decimal(14, 2)
+  budgetBrl   Decimal? @db.Decimal(14, 2)
+  salesCount  Int      @default(0)
+  updatedAt   DateTime @updatedAt @db.Timestamptz(6)
+
+  @@unique([tenantId, empresaId, periodYear, periodMonth])
+  @@index([tenantId])
+  @@index([empresaId])
+}
+
+model MonthSettings {
+  id                           String   @id @default(uuid()) @db.Uuid
+  tenantId                     String   @db.Uuid
+  tenant                       Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  empresaId                    String   @db.Uuid
+  empresa                      Empresa  @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  periodYear                   Int
+  periodMonth                  Int
+  rankingReleasedToColaborador Boolean  @default(false)
+  closed                       Boolean  @default(false)
+  updatedAt                    DateTime @updatedAt @db.Timestamptz(6)
+
+  @@unique([tenantId, empresaId, periodYear, periodMonth])
+  @@index([empresaId])
+}
+
+model SyncRun {
+  id              String         @id @default(uuid()) @db.Uuid
+  tenantId        String         @db.Uuid
+  tenant          Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  empresaId       String?        @db.Uuid
+  connectionId    String?        @db.Uuid
+  startedAt       DateTime       @default(now()) @db.Timestamptz(6)
+  finishedAt      DateTime?      @db.Timestamptz(6)
+  status          SyncStatusEnum @default(running)
+  endpointSummary Json?          @db.JsonB
+  rowsUpserted    Int            @default(0)
+  error           String?
+  cursor          Json?          @db.JsonB
+
+  @@index([tenantId, startedAt])
+}
+
+model AuditLog {
+  id          String   @id @default(uuid()) @db.Uuid
+  tenantId    String?  @db.Uuid
+  tenant      Tenant?  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  actorUserId String?  @db.Uuid
+  actor       User?    @relation(fields: [actorUserId], references: [id], onDelete: SetNull)
+  action      String
+  entity      String
+  entityId    String?
+  diff        Json?    @db.JsonB
+  createdAt   DateTime @default(now()) @db.Timestamptz(6)
+
+  @@index([tenantId, createdAt])
+}
+
+model Notification {
+  id            String       @id @default(uuid()) @db.Uuid
+  tenantId      String       @db.Uuid
+  tenant        Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  /** null = enviada para todos os colaboradores do tenant */
+  colaboradorId String?      @db.Uuid
+  colaborador   Colaborador? @relation(fields: [colaboradorId], references: [id], onDelete: Cascade)
+  title         String
+  body          String
+  createdById   String?      @db.Uuid
+  createdAt     DateTime     @default(now()) @db.Timestamptz(6)
+
+  reads NotificationRead[]
+
+  @@index([tenantId, createdAt])
+  @@index([colaboradorId])
+}
+
+model NotificationRead {
+  id             String       @id @default(uuid()) @db.Uuid
+  notificationId String       @db.Uuid
+  notification   Notification @relation(fields: [notificationId], references: [id], onDelete: Cascade)
+  colaboradorId  String       @db.Uuid
+  colaborador    Colaborador  @relation(fields: [colaboradorId], references: [id], onDelete: Cascade)
+  readAt         DateTime     @default(now()) @db.Timestamptz(6)
+
+  @@unique([notificationId, colaboradorId])
+  @@index([colaboradorId])
+}

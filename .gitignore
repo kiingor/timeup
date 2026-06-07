@@ -1,0 +1,41 @@
+# dependencies
+node_modules/
+.pnpm-store/
+
+# next.js
+.next/
+out/
+build/
+dist/
+*.tsbuildinfo
+next-env.d.ts
+
+# env
+.env
+.env.local
+.env.*.local
+
+# prisma
+packages/db/prisma/*.db
+
+# local postgres (dev binaries + data dir)
+.postgres/
+pgdata/
+
+# uploads (local storage adapter)
+apps/web/public/uploads/
+
+# deploy helpers (contain secrets: DB password, ssh scripts)
+_deploy/
+
+# generated prisma client (regenerated on install via postinstall)
+packages/db/src/generated/
+
+# misc
+.DS_Store
+*.log
+coverage/
+playwright-report/
+test-results/
+.vscode/
+.idea/

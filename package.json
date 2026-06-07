@@ -1,0 +1,28 @@
+{
+  "name": "timeup",
+  "version": "0.1.0",
+  "private": true,
+  "packageManager": "pnpm@10.0.0",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev": "pnpm --filter @timeup/web dev",
+    "build": "pnpm --filter @timeup/web build",
+    "start": "pnpm --filter @timeup/web start",
+    "worker": "pnpm --filter @timeup/worker dev",
+    "lint": "pnpm --filter @timeup/web lint",
+    "db:generate": "pnpm --filter @timeup/db generate",
+    "db:migrate": "pnpm --filter @timeup/db migrate",
+    "db:push": "pnpm --filter @timeup/db push",
+    "db:seed": "pnpm --filter @timeup/db seed",
+    "db:studio": "pnpm --filter @timeup/db studio",
+    "test": "pnpm -r test"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.3"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": ["@prisma/client", "@prisma/engines", "prisma", "esbuild", "sharp", "@node-rs/argon2"]
+  }
+}
