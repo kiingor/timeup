@@ -10,6 +10,17 @@ export interface SyncResult {
   empresa?: string | null;
 }
 
+export interface SyncOptions {
+  /**
+   * Limit the daily-curve walk to the last N days of the period instead of the whole
+   * month. Automated runs (cron) use a small window — the month's totals/KPIs are always
+   * refreshed in full, only the day-by-day backfill is trimmed, which keeps a scheduled
+   * run at a handful of Softcom calls per empresa (serverless timeouts are tight).
+   * Omit for the full month walk (manual "Sincronizar", backfill).
+   */
+  dailyDays?: number;
+}
+
 /** Case/accent-insensitive name key for matching ranking SellerName to a funcionário. */
 function nameKey(s: string | null | undefined): string {
   return (s ?? "")
@@ -41,12 +52,14 @@ async function syncDailyFromRanking(
   month: number,
   byVendedorId: Map<string, string>,
   byName: Map<string, string>,
+  dailyDays?: number,
 ): Promise<void> {
   const now = new Date();
   const isCurrentMonth = now.getUTCFullYear() === year && now.getUTCMonth() + 1 === month;
   const lastDay = isCurrentMonth ? now.getUTCDate() : new Date(Date.UTC(year, month, 0)).getUTCDate();
+  const firstDay = dailyDays && dailyDays > 0 ? Math.max(1, lastDay - dailyDays + 1) : 1;
 
-  for (let d = 1; d <= lastDay; d++) {
+  for (let d = firstDay; d <= lastDay; d++) {
     let dayRanking: SoftcomRankingVendedor[] = [];
     try {
       dayRanking = await getRankingVendedor(cfg, year, month, d);
@@ -96,7 +109,11 @@ type EmpresaWithConnection = {
  * sales_monthly (realized + per-empresa rank), recomputes store_monthly, and walks the
  * daily curve. Idempotent. Records a sync_runs row scoped to the empresa/connection.
  */
-export async function syncEmpresa(empresa: EmpresaWithConnection, ref: Date = new Date()): Promise<SyncResult> {
+export async function syncEmpresa(
+  empresa: EmpresaWithConnection,
+  ref: Date = new Date(),
+  opts: SyncOptions = {},
+): Promise<SyncResult> {
   const tenantId = empresa.tenantId;
   const empresaId = empresa.id;
   const cfg = clientConfigFromRow(empresa.connection);
@@ -188,7 +205,16 @@ export async function syncEmpresa(empresa: EmpresaWithConnection, ref: Date = ne
     });
 
     // daily evolution: per-vendedor per-day totals (rankingvendedor?Dia=D) → sales_daily
-    await syncDailyFromRanking(cfg, tenantId, empresaId, year, month, colaboradorByVendedorId, colaboradorByName);
+    await syncDailyFromRanking(
+      cfg,
+      tenantId,
+      empresaId,
+      year,
+      month,
+      colaboradorByVendedorId,
+      colaboradorByName,
+      opts.dailyDays,
+    );
 
     await masterDb.syncRun.update({
       where: { id: run.id },
@@ -213,7 +239,11 @@ export async function syncEmpresa(empresa: EmpresaWithConnection, ref: Date = ne
  * connection per empresa). Aggregates the per-empresa results. Uses masterDb with explicit
  * tenantId (background job, runs across tenants).
  */
-export async function syncTenant(tenantId: string, ref: Date = new Date()): Promise<SyncResult> {
+export async function syncTenant(
+  tenantId: string,
+  ref: Date = new Date(),
+  opts: SyncOptions = {},
+): Promise<SyncResult> {
   const empresas = (await masterDb.empresa.findMany({
     where: { tenantId, active: true, connection: { enabled: true } },
     include: { connection: true },
@@ -227,7 +257,7 @@ export async function syncTenant(tenantId: string, ref: Date = new Date()): Prom
   let okCount = 0;
   const errors: string[] = [];
   for (const emp of empresas) {
-    const res = await syncEmpresa(emp, ref);
+    const res = await syncEmpresa(emp, ref, opts);
     rows += res.rowsUpserted;
     if (res.status === "success") okCount++;
     else if (res.error) errors.push(`${emp.name}: ${res.error}`);
