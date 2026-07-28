@@ -66,7 +66,9 @@ Hobby é 60s). Tenants com um sync ainda em andamento (<15min) são pulados, ent
 empilham execuções.
 
 ### 2a. Vercel Cron (já configurado no código)
-`apps/web/vercel.json` agenda `0 6 * * *` (UTC) = **03:00 de Brasília, todo dia**.
+`apps/web/vercel.json` agenda `0 9 * * *` (UTC) = **06:00 de Brasília, todo dia**.
+⏰ A Vercel só aceita cron em **UTC** — sempre some 3h do horário de Brasília ao editar
+(o Brasil não tem mais horário de verão, então o offset é fixo em UTC-3).
 
 ⚠️ Falta **1 passo manual**: em Vercel → Settings → Environment Variables (Production), criar
 **`CRON_SECRET`** com um valor aleatório. Sem essa variável a Vercel não manda o header e o endpoint
