@@ -26,13 +26,22 @@ export function LoginForm({ callbackUrl }: { callbackUrl?: string }) {
 
   async function onSubmit(values: LoginInput) {
     setServerError(null);
-    const res = await signIn("credentials", {
-      email: values.email,
-      password: values.password,
-      redirect: false,
-    });
-    if (!res || res.error) {
-      setServerError("E-mail ou senha inválidos.");
+    try {
+      const res = await signIn("credentials", {
+        email: values.email,
+        password: values.password,
+        redirect: false,
+      });
+      if (!res || res.error || !res.ok) {
+        setServerError(
+          res?.error === "CredentialsSignin"
+            ? "E-mail ou senha inválidos."
+            : "O login está temporariamente indisponível. Tente novamente em alguns instantes.",
+        );
+        return;
+      }
+    } catch {
+      setServerError("Não foi possível conectar ao serviço de login. Verifique sua conexão e tente novamente.");
       return;
     }
     // Middleware routes "/" to the correct role home.
@@ -54,7 +63,7 @@ export function LoginForm({ callbackUrl }: { callbackUrl?: string }) {
       </div>
 
       {serverError && (
-        <div className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">{serverError}</div>
+        <div role="alert" className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">{serverError}</div>
       )}
 
       <Button type="submit" className="w-full" disabled={isSubmitting}>
